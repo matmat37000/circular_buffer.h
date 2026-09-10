@@ -28,20 +28,18 @@
 /* DECLARATION */
 #ifndef LIB_MATHIOL_CIRCULAR_BUFFER_H_
 #define LIB_MATHIOL_CIRCULAR_BUFFER_H_
-#include <string.h>
 
-#define rotating_buffer_add(buf, value) \
-    rotating_buffer_add_impl((buf), &(value))
+#define circular_buffer_add(buf, value) \
+    circular_buffer_add_impl((buf), &(value))
 
 /** Rotating buffer struct */
 typedef struct {
-    unsigned char *storage;
+    void *storage;
     size_t size;
     size_t capacity;
     size_t element_size;
     size_t start;
     size_t end;
-    bool owns_storage;
 } circular_buffer;
 
 /**
@@ -52,7 +50,7 @@ typedef struct {
  * @param capacity      Usable buffer capacity
  * @param element_size  Size of each element the buffer will hold
  */
-void circular_buffer_init(circular_buffer *buf, unsigned char *storage, size_t capacity, size_t element_size);
+void circular_buffer_init(circular_buffer *buf, void *storage, size_t capacity, size_t element_size);
 
 /**
  * Create a buffer object with malloc, and use circular_buffer_init
@@ -65,7 +63,7 @@ void circular_buffer_init(circular_buffer *buf, unsigned char *storage, size_t c
 circular_buffer circular_buffer_create(size_t capacity, size_t element_size);
 
 /**
- * Free storage owned by the buffer.
+ * Free storage owned by the buffer. Unsafe on buffer with caller-provided storage.
  * Does not free buf itself.
  *
  * @param buf Address of the buffer to free the content
@@ -78,7 +76,7 @@ void circular_buffer_free(circular_buffer *buf);
  * @param buf       Address of the buffer to modify
  * @param element   The element to add
  */
-int circular_buffer_add_impl(circular_buffer *buf, const unsigned char *element);
+int circular_buffer_add_impl(circular_buffer *buf, const void *element);
 
 /**
  * Get an element of the buffer
@@ -86,7 +84,7 @@ int circular_buffer_add_impl(circular_buffer *buf, const unsigned char *element)
  * @param buf Address of the buffer to get the element of
  * @param pos The index of the element
  */
-unsigned char *circular_buffer_get(const circular_buffer *buf, size_t pos);
+void *circular_buffer_get(const circular_buffer *buf, size_t pos);
 
 #endif // LIB_MATHIOL_CIRCULAR_BUFFER_H_
 
@@ -94,14 +92,14 @@ unsigned char *circular_buffer_get(const circular_buffer *buf, size_t pos);
 #if defined(LIB_MATHIOL_CIRCULAR_BUFFER_IMPLEMENTATION) || defined(__CLION_IDE__) || defined(__INTELLISENSE__)
 
 #include <stdlib.h>
+#include <string.h>
 
-void circular_buffer_init(circular_buffer *buf, unsigned char *storage, const size_t capacity, const size_t element_size) {
+void circular_buffer_init(circular_buffer *buf, void *storage, const size_t capacity, const size_t element_size) {
     buf->size = 0;
     buf->capacity = capacity;
     buf->element_size = element_size;
     buf->storage = storage;
     buf->start = buf->end = 0;
-    buf->owns_storage = false;
 }
 
 circular_buffer circular_buffer_create(const size_t capacity, const size_t element_size) {
@@ -120,7 +118,6 @@ circular_buffer circular_buffer_create(const size_t capacity, const size_t eleme
         return buf;
 
     circular_buffer_init(&buf, storage, capacity, element_size);
-    buf.owns_storage = true;
 
     return buf;
 }
@@ -129,20 +126,25 @@ void circular_buffer_free(circular_buffer *buf) {
     if (buf == NULL)
         return;
 
-    if (buf->owns_storage)
-        free(buf->storage);
+    free(buf->storage);
 
     *buf = (circular_buffer){0};
 }
 
-int circular_buffer_add_impl(circular_buffer *buf, const unsigned char *element) {
+int circular_buffer_add_impl(circular_buffer *buf, const void *element) {
     if (buf == NULL ||
         buf->storage == NULL ||
         buf->capacity == 0)
         return EXIT_FAILURE;
 
     // Set the value
-    memcpy(buf->storage + buf->end * buf->element_size, element, buf->element_size);
+    unsigned char *storage = buf->storage;
+
+    memcpy(
+        storage + buf->end * buf->element_size,
+        element,
+        buf->element_size
+    );
     // Move by one the end
     buf->end++;
     // Clamp it
@@ -164,7 +166,7 @@ int circular_buffer_add_impl(circular_buffer *buf, const unsigned char *element)
     return EXIT_SUCCESS;
 }
 
-unsigned char *circular_buffer_get(
+void *circular_buffer_get(
     const circular_buffer *buf,
     const size_t pos) {
     if (buf == NULL ||
