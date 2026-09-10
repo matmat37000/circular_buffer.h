@@ -26,4 +26,4 @@ jobs:
           name: ${{ github.event.inputs.tag_name }}
           draft: false
           prerelease: false
-          files: src/rotating_buffer.h
+          files: src/circular_buffer.h
