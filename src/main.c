@@ -14,23 +14,21 @@ int main() {
   circular_buffer buf_stack;
   circular_buffer_init(&buf_stack, storage, 4, sizeof(int));
 
-  for (int i = 1; i <= 20; i++) {
+  for (int i = 0; i < 21; i++) {
       printf("\033[H\033[J");
-      print_status(&buf_stack, storage);
       circular_buffer_add(&buf_stack, i);
+      print_status(&buf_stack, storage);
       sleep(1);
   }
 }
 
 void print_status(const circular_buffer *buf_stack, int storage[]) {
-    for (int i = 0; i < buf_stack->capacity; i++)
-        printf("%d (%p)\n", storage[i], &storage[i]);
-
+    printf("Start: %lu\nEnd: %lu\n", buf_stack->start, buf_stack->end);
 
     printf("--------\n");
 
     for (int i = 0; i < buf_stack->capacity; i++) {
-        if (i == buf_stack->start) printf("\033[32m");
+        // if (i == buf_stack->start) printf("\033[32m");
         if (i == buf_stack->end) printf("\033[31m");
 
         printf("%d (%p)\033[0m\n", storage[i], &storage[i]);
@@ -39,7 +37,7 @@ void print_status(const circular_buffer *buf_stack, int storage[]) {
     printf("--------\n");
 
     for (int i = 0; i < buf_stack->size; i++) {
-        char* val = circular_buffer_get(buf_stack, i);
+        int* val = circular_buffer_get(buf_stack, i);
         printf("%d (%p)\n", *val, val);
     }
 }
